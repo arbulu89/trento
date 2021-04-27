@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/trento-project/trento/internal/consul"
+	"github.com/trento-project/trento/agent/discover"
 )
 
 const TrentoPrefix string = "trento-"
@@ -201,9 +202,17 @@ func NewHostHandler(client consul.Client) gin.HandlerFunc {
 			_ = c.Error(err)
 			return
 		}
+
+		sapSystems, err := discover.LoadDiscovery(client, name)
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+
 		c.HTML(http.StatusOK, "host.html.tmpl", gin.H{
 			"Host":         &Host{*catalogNode.Node, client},
 			"HealthChecks": checks,
+			"SAPInstances": sapSystems,
 		})
 	}
 }

@@ -8,9 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/trento-project/trento/agent/discover"
+
+	"github.com/hashicorp/consul-template/manager"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/hashicorp/consul-template/manager"
+
+	consulInternal "github.com/trento-project/trento/internal/consul"
 )
 
 type Agent struct {
@@ -111,8 +115,8 @@ func (a *Agent) Start() error {
 
 	var wg sync.WaitGroup
 	// This number must match the number threads attached to the WaitGroup object
-	wg.Add(3)
-	errs := make(chan error, 3)
+	wg.Add(4)
+	errs := make(chan error, 4)
 
 	go func(wg *sync.WaitGroup) {
 		log.Println("Starting Check loop...")
@@ -131,6 +135,13 @@ func (a *Agent) Start() error {
 		defer wg.Done()
 		errs <- a.startConsulTemplate()
 		log.Println("consul-template loop stopped.")
+	}(&wg)
+
+	go func(wg *sync.WaitGroup) {
+		log.Println("Starting SAP discovery loop...")
+		defer wg.Done()
+		errs <- a.startSapDiscovery()
+		log.Println("SAP discovery loop stopped.")
 	}(&wg)
 
 	// As soon as all the goroutines in the Waitgroup are done, close the channel where the errors are sent
@@ -225,4 +236,25 @@ func (a *Agent) updateConsulCheck(result CheckResult) {
 	}
 
 	log.Printf("Consul check TTL updated. Status: %s.", status)
+}
+
+func (a *Agent) startSapDiscovery() error {
+	ticker := time.NewTicker(time.Second*60)
+	consulClient, _ := consulInternal.DefaultClient()
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			sapSystems, err := discover.NewSAPSystemsDiscover()
+			if err != nil {
+				log.Println("An error occurred while running the SAP discovery loop:", err)
+				continue
+			}
+			for _, s := range sapSystems {
+				s.StoreDiscovery(consulClient)
+			}
+		case <-a.ctx.Done():
+			return nil
+		}
+	}
 }

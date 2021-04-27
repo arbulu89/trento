@@ -22,6 +22,8 @@ type KV interface {
 	Get(key string, q *consulApi.QueryOptions) (*consulApi.KVPair, *consulApi.QueryMeta, error)
 	List(prefix string, q *consulApi.QueryOptions) (consulApi.KVPairs, *consulApi.QueryMeta, error)
 	Keys(prefix, separator string, q *consulApi.QueryOptions) ([]string, *consulApi.QueryMeta, error)
+	Put(p *consulApi.KVPair, q *consulApi.WriteOptions) (*consulApi.WriteMeta, error)
+	DeleteTree(prefix string, w *consulApi.WriteOptions) (*consulApi.WriteMeta, error)
 }
 
 type Health interface {

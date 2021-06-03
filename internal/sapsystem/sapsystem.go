@@ -7,6 +7,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"io/ioutil"
 
 	"github.com/SUSE/sap_host_exporter/lib/sapcontrol"
 	"github.com/pkg/errors"
@@ -20,6 +21,7 @@ const (
 	sapInstallationPath  string = "/usr/sap"
 	sapIdentifierPattern string = "^[A-Z][A-Z0-9]{2}$" // PRD, HA1, etc
 	sapInstancePattern   string = "^[A-Z]+([0-9]{2})$" // HDB00, ASCS00, ERS10, etc
+	sapDefaultProfile    string = "DEFAULT.PFL"
 )
 
 const (
@@ -36,8 +38,13 @@ type SAPSystem struct {
 	//Id         string                `mapstructure:"id,omitempty"`
 	SID       string                  `mapstructure:"sid,omitempty"`
 	Type      int                     `mapstructure:"type,omitempty"`
+	Profile   SAPProfile              `mapstructure:"profile,omitempty"`
 	Instances map[string]*SAPInstance `mapstructure:"instances,omitempty"`
 }
+
+// The value is interface{} as some of the entries in the SAP profiles files
+// are already using "/", so the result will be a map of strings/maps
+type SAPProfile map[string]interface{}
 
 type SAPInstance struct {
 	Name       string      `mapstructure:"name,omitempty"`
@@ -58,6 +65,10 @@ var newWebService = func(instNumber string) sapcontrol.WebService {
 	config.SetDefault("sap-control-uds", path.Join("/tmp", fmt.Sprintf(".sapstream5%s13", instNumber)))
 	client := sapcontrol.NewSoapClient(config)
 	return sapcontrol.NewWebService(client)
+}
+
+var getProfilePath = func(sysPath string) string {
+	return path.Join(sysPath, "SYS", "profile", sapDefaultProfile)
 }
 
 func NewSAPSystemsList() (SAPSystemsList, error) {
@@ -87,6 +98,14 @@ func NewSAPSystem(fs afero.Fs, sysPath string) (*SAPSystem, error) {
 		SID:       sysPath[strings.LastIndex(sysPath, "/")+1:],
 		Instances: make(map[string]*SAPInstance),
 	}
+
+	profilePath := getProfilePath(sysPath)
+	profile, err := getProfileData(profilePath)
+	if err != nil {
+		log.Print(err.Error())
+		return system, err
+	}
+	system.Profile = profile
 
 	instPaths, err := findInstances(fs, sysPath)
 	if err != nil {
@@ -156,6 +175,26 @@ func findInstances(fs afero.Fs, sapPath string) ([][]string, error) {
 	}
 
 	return instances, nil
+}
+
+// Get SAP profile file content
+func getProfileData(profilePath string) (map[string]interface{}, error) {
+	profile, err := os.Open(profilePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open profile file %s", err)
+	}
+
+	defer profile.Close()
+
+	profileRaw, err := ioutil.ReadAll(profile)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not read profile file %s", err)
+	}
+
+	configMap := internal.FindMatches(`(\S+)\s=\s(\S+)`, profileRaw)
+
+	return configMap, nil
 }
 
 func NewSAPInstance(w sapcontrol.WebService) (*SAPInstance, error) {

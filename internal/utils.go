@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strings"
 )
 
 func Contains(s []string, str string) bool {
@@ -40,10 +39,6 @@ func FindMatches(pattern string, text []byte) map[string]interface{} {
 	r := regexp.MustCompile(pattern)
 	values := r.FindAllStringSubmatch(string(text), -1)
 	for _, match := range values {
-		// I was not able to create a regular expression which excludes lines starting with #...
-		if strings.HasPrefix(match[1], "#") {
-			continue
-		}
 		configMap[match[1]] = match[2]
 	}
 	return configMap

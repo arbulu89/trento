@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"strings"
@@ -42,15 +43,20 @@ type SAPSystem struct {
 	Instances map[string]*SAPInstance `mapstructure:"instances,omitempty"`
 }
 
-// The value is interface{} as some of the entries in the SAP profiles files
+// The value is interface{} as some of the entries in the SAP profiles files and commands
 // are already using "/", so the result will be a map of strings/maps
 type SAPProfile map[string]interface{}
+type SystemReplication map[string]interface{}
+type HostConfiguration map[string]interface{}
 
 type SAPInstance struct {
-	Name       string      `mapstructure:"name,omitempty"`
-	Type       int         `mapstructure:"type,omitempty"`
-	Host       string      `mapstructure:"host,omitempty"`
-	SAPControl *SAPControl `mapstructure:"sapcontrol,omitempty"`
+	Name              string            `mapstructure:"name,omitempty"`
+	Type              int               `mapstructure:"type,omitempty"`
+	Host              string            `mapstructure:"host,omitempty"`
+	SAPControl        *SAPControl       `mapstructure:"sapcontrol,omitempty"`
+	// Only for Database type
+	SystemReplication SystemReplication `mapstructure:"systemreplication,omitempty"`
+	HostConfiguration SystemReplication `mapstructure:"hostconfiguration,omitempty"`
 }
 
 type SAPControl struct {
@@ -60,6 +66,7 @@ type SAPControl struct {
 	Properties map[string]*sapcontrol.InstanceProperty `mapstructure:"properties,omitempty"`
 }
 
+// Declare some functions. They follow this way to enable UT
 var newWebService = func(instNumber string) sapcontrol.WebService {
 	config := viper.New()
 	config.SetDefault("sap-control-uds", path.Join("/tmp", fmt.Sprintf(".sapstream5%s13", instNumber)))
@@ -70,6 +77,8 @@ var newWebService = func(instNumber string) sapcontrol.WebService {
 var getProfilePath = func(sysPath string) string {
 	return path.Join(sysPath, "SYS", "profile", sapDefaultProfile)
 }
+
+var customExecCommand = exec.Command
 
 func NewSAPSystemsList() (SAPSystemsList, error) {
 	var systems = SAPSystemsList{}
@@ -192,7 +201,7 @@ func getProfileData(profilePath string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("could not read profile file %s", err)
 	}
 
-	configMap := internal.FindMatches(`(\S+)\s=\s(\S+)`, profileRaw)
+	configMap := internal.FindMatches(`([\w\/]+)\s=\s(.+)`, profileRaw)
 
 	return configMap, nil
 }
@@ -218,7 +227,33 @@ func NewSAPInstance(w sapcontrol.WebService) (*SAPInstance, error) {
 		sapInstance.Type = Application
 	}
 
+	if sapInstance.Type == Database {
+		sid := sapInstance.SAPControl.Properties["SAPSYSTEMNAME"].Value
+		sapInstance.SystemReplication = systemReplicationStatus(sid, sapInstance.Name)
+		sapInstance.HostConfiguration = landscapeHostConfiguration(sid, sapInstance.Name)
+	}
+
 	return sapInstance, nil
+}
+
+func runPythonSupport(sid, instance, script string) map[string]interface{} {
+	user := fmt.Sprintf("%sadm", strings.ToLower(sid))
+	cmdPath := path.Join("/usr/sap", sid, instance, "exe/python_support", script)
+	cmd := fmt.Sprintf("python %s --sapcontrol=1", cmdPath)
+	// Even with a return code, some data is available
+	srData, _ := customExecCommand("su", "-lc", cmd, user).Output()
+
+	dataMap := internal.FindMatches(`(\S+)=(.*)`, srData)
+
+	return dataMap
+}
+
+func systemReplicationStatus(sid, instance string) map[string]interface{} {
+	return runPythonSupport(sid, instance, "systemReplicationStatus.py")
+}
+
+func landscapeHostConfiguration(sid, instance string) map[string]interface{} {
+	return runPythonSupport(sid, instance, "landscapeHostConfiguration.py")
 }
 
 func NewSAPControl(w sapcontrol.WebService) (*SAPControl, error) {

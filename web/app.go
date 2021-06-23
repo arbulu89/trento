@@ -5,10 +5,20 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"path"
+	"os"
+	"os/exec"
+	"log"
+	"strings"
+	"io/fs"
 
+	"github.com/pkg/errors"
 	"github.com/gin-gonic/gin"
 
 	"github.com/trento-project/trento/internal/consul"
+
+	consultemplateconfig "github.com/hashicorp/consul-template/config"
+	"github.com/hashicorp/consul-template/manager"
 )
 
 //go:embed frontend/assets
@@ -16,6 +26,9 @@ var assetsFS embed.FS
 
 //go:embed templates
 var templatesFS embed.FS
+
+//go:embed ansible
+var ansibleFS embed.FS
 
 type App struct {
 	host string
@@ -81,9 +94,136 @@ func (a *App) Start() error {
 		MaxHeaderBytes: 1 << 20,
 	}
 
+	runner, err := NewTemplateRunner()
+	if err != nil {
+		return err
+	}
+
+	go runner.Start()
+
+	go startAnsibleTicker()
+
 	return s.ListenAndServe()
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	a.engine.ServeHTTP(w, req)
+}
+
+const ansibleHostsTemplate = `{{- with node }}
+{{- $nodename := .Node.Node }}
+[all]
+{{- range nodes }}
+{{- if ne .Node $nodename }}
+{{ .Node }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $key, $pairs := tree "trento/v0/clusters/" | byKey }}
+
+[{{ $key }}]
+{{- range tree (print "trento/v0/clusters/" $key "/crmmon/Nodes") }}
+{{- if .Key | contains "/Name" }}
+{{ .Value }}
+{{- end }}
+{{- end }}
+{{- end }}
+`
+
+func NewTemplateRunner() (*manager.Runner, error) {
+	config := consultemplateconfig.DefaultConfig()
+	contents := ansibleHostsTemplate
+	destination := path.Join("consul.d", "ansible_hosts")
+	*config.Templates = append(
+		*config.Templates,
+		&consultemplateconfig.TemplateConfig{
+			Contents:    &contents,
+			Destination: &destination,
+		},
+	)
+
+	runner, err := manager.NewRunner(config, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not start consul-template")
+	}
+
+	return runner, nil
+}
+
+func createTempAnsible() error {
+	err := os.RemoveAll("consul.d/ansible")
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	err = os.Mkdir("consul.d/ansible", 0644)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	err = fs.WalkDir(ansibleFS, "ansible", func(fileName string, dir fs.DirEntry, err error) error {
+    if err != nil {
+        return err
+    }
+		if !dir.IsDir() {
+			content, err := ansibleFS.ReadFile(fileName)
+			if err != nil {
+				log.Printf("Error reading file %s", fileName)
+				return err
+			}
+			f, err := os.Create(path.Join("consul.d", fileName))
+			if err != nil {
+				log.Printf("Error creating file %s", fileName)
+				return err
+			}
+			fmt.Fprintf(f, "%s", content)
+		} else {
+			os.Mkdir(path.Join("consul.d", fileName), 0644)
+		}
+	  return nil
+	})
+
+	return nil
+}
+
+func startAnsibleTicker() {
+	log.Print("Starting the ansible ticker...")
+	createTempAnsible()
+	araCallback := exec.Command("python3", "-m", "ara.setup.callback_plugins")
+	araPath, err := araCallback.Output()
+	if err != nil {
+		log.Println("An error occurred while getting ARA plugin path:", err)
+	}
+	araPathStr := strings.TrimSpace(string(araPath))
+
+	tick := func() {
+		log.Print("Running ansible execution...")
+		cmd := exec.Command("ansible-playbook", "consul.d/ansible/main.yaml", "--inventory=consul.d/ansible_hosts")
+    cmd.Env = append(os.Environ(), fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s", araPathStr))
+		result, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Println("An error occurred while running ansible:", err)
+		}
+		log.Print(string(result))
+	}
+
+	interval := 1 * time.Minute
+
+	repeat(tick, interval)
+}
+
+func repeat(tick func(), interval time.Duration) {
+	// run the first tick immediately
+	tick()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			tick()
+		}
+	}
 }

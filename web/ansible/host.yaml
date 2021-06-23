@@ -1,0 +1,47 @@
+---
+- hosts: all
+  gather_facts: False
+  ignore_errors: yes
+  tags:
+    - "group:1.1:Corosync"
+  tasks:
+    - name: Corosync Token is set to 30000
+      lineinfile:
+        path: /etc/corosync/corosync.conf
+        regexp: 'token:\s*5000'
+        state: absent
+      check_mode: yes
+      register: out
+      failed_when: not out.found
+      tags:
+        - "check:1.1.1:Corosync Tokes is set to 30000"
+        - |
+          description:
+          ## Remediation
+          Adjust the Corosync `token` timeout as recommended on the Azure best practices.
+
+          ## References
+          - https://docs.microsoft.com/en-us/azure/virtual-machines/workloads/sap/high-availability-guide-suse-pacemaker
+
+    - name: Check corosync consensus is 6000
+      lineinfile:
+        path: /etc/corosync/corosync.conf
+        regexp: 'consensus:\s*6000'
+        state: absent
+      check_mode: yes
+      register: out
+      failed_when: not out.found
+      tags:
+        - "check:1.1.2:Check corosync consensus is 6000"
+
+    - name: Check corosync max_messages is 20
+      lineinfile:
+        path: /etc/corosync/corosync.conf
+        regexp: 'max_messages:\s*20'
+        state: absent
+      check_mode: yes
+      register: out
+      failed_when: not out.found
+      tags:
+        - "check:1.1.3:Check corosync max_messages is 20"
+        - "on_failed:warning"

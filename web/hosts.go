@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"sort"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	consulApi "github.com/hashicorp/consul/api"
@@ -112,6 +113,20 @@ func NewHostHandler(client consul.Client) gin.HandlerFunc {
 func NewHAChecksHandler(client consul.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
+
+		n := NewAraHosts(name)
+
+		// Avoid ongoing test results
+		lastResult := n.HostResults[0]
+		if lastResult.Ok == 0 || lastResult.Failed == 0 {
+			lastResult = n.HostResults[1]
+		}
+
+		r := lastResult.GetResults()
+		for _, rItem := range r.Groups {
+			log.Print(rItem)
+		}
+
 		catalogNode, _, err := client.Catalog().Node(name, nil)
 		if err != nil {
 			_ = c.Error(err)
@@ -124,9 +139,11 @@ func NewHAChecksHandler(client consul.Client) gin.HandlerFunc {
 		}
 
 		host := hosts.NewHost(*catalogNode.Node, client)
-		c.HTML(http.StatusOK, "ha_checks.html.tmpl", gin.H{
+		//c.HTML(http.StatusOK, "ha_checks.html.tmpl", gin.H{
+		c.HTML(http.StatusOK, "ha_checks_tmp.html.tmpl", gin.H{
 			"Hostname": host.Name(),
-			"HAChecks": host.HAChecks(),
+			//"HAChecks": host.HAChecks(),
+			"HAChecks": r,
 		})
 	}
 }

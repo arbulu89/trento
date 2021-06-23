@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin/render"
 
@@ -102,6 +103,9 @@ func (r *LayoutRender) addFileFromFS(templatesFS fs.FS, file string) {
 			return a + b
 		},
 		"markdown": markdownToHTML,
+		"normalizeId": func(id string) string {
+		  return strings.Replace(id, ".", "", -1)
+		},
 	})
 	patterns := append([]string{r.root, file}, r.blocks...)
 	tmpl = template.Must(tmpl.ParseFS(templatesFS, patterns...))

@@ -1,0 +1,40 @@
+---
+- hosts: all
+  gather_facts: False
+  ignore_errors: yes
+  tasks:
+    - name: Get corosync configuration file content
+      command: md5sum /etc/corosync/corosync.conf
+      #command: md5sum /tmp/test
+      register: corosync_md5_content
+
+    - name: Set corosync configuration file content
+      set_fact:
+        corosync_file_md5: "{{ corosync_md5_content.stdout }}"
+      delegate_facts: True
+
+    - name: Check if pacemaker package version is the same in all cluster nodes
+      assert:
+        that:
+          - "{{ groups[item] | map('extract', hostvars) | map(attribute='ansible_facts') | map(attribute='packages') | map(attribute='pacemaker') | first | map(attribute='version') | list | unique | length }} == 1"
+      loop: "{{ group_names }}"
+      tags:
+        - "check:2.1.1:Check if pacemaker package version is the same in all cluster nodes"
+        - "group:2.1:Pacemaker"
+        - |
+          description:
+          ## Remediation
+          Installed pacemaker version must be the same in all the cluster nodes
+
+    - name: Check if corosync configuration file is the same in all cluster nodes
+      assert:
+        that:
+          - "{{ groups[item] | map('extract', hostvars) | map(attribute='corosync_file_md5') | list | unique | length }} == 1"
+      loop: "{{ group_names }}"
+      tags:
+        - "check:1.1.10:Check if corosync configuration file is the same in all cluster nodes"
+        - "group:1.1:Corosync"
+        - |
+          description:
+          ## Remediation
+          Use the same /etc/corosync/corosync.conf configuration file in all cluster nodes

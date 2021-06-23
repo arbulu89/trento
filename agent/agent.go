@@ -97,7 +97,7 @@ func DefaultConfig() (Config, error) {
 	return Config{
 		InstanceName: hostname,
 		DiscoveryTTL: 2 * time.Minute,
-		CheckerTTL:   10 * time.Second,
+		CheckerTTL:   2 * time.Minute,
 	}, nil
 }
 
@@ -122,6 +122,7 @@ func (a *Agent) Start() error {
 
 	var wg sync.WaitGroup
 
+	/*
 	wg.Add(1)
 	// The Checker Loop is handling the compliance-checks being executed regularly
 	// and reporting a Service Status (WARN/FAIL)
@@ -131,6 +132,7 @@ func (a *Agent) Start() error {
 		a.startCheckTicker()
 		log.Println("Check loop stopped.")
 	}(&wg)
+	*/
 
 	wg.Add(1)
 	// The Discover Loop is executing at a much slower pace than the Checker Loop
@@ -171,6 +173,7 @@ func (a *Agent) Stop() {
 
 func (a *Agent) registerConsulService() error {
 	var err error
+	log.Print(a.cfg.CheckerTTL.String())
 
 	consulService := &consulApi.AgentServiceRegistration{
 		ID:   a.cfg.InstanceName,

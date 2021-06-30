@@ -123,15 +123,15 @@ func (a *Agent) Start() error {
 	var wg sync.WaitGroup
 
 	/*
-	wg.Add(1)
-	// The Checker Loop is handling the compliance-checks being executed regularly
-	// and reporting a Service Status (WARN/FAIL)
-	go func(wg *sync.WaitGroup) {
-		log.Println("Starting Check loop...")
-		defer wg.Done()
-		a.startCheckTicker()
-		log.Println("Check loop stopped.")
-	}(&wg)
+		wg.Add(1)
+		// The Checker Loop is handling the compliance-checks being executed regularly
+		// and reporting a Service Status (WARN/FAIL)
+		go func(wg *sync.WaitGroup) {
+			log.Println("Starting Check loop...")
+			defer wg.Done()
+			a.startCheckTicker()
+			log.Println("Check loop stopped.")
+		}(&wg)
 	*/
 
 	wg.Add(1)

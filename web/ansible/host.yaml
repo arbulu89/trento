@@ -5,7 +5,7 @@
   tags:
     - "group:1.1:Corosync"
   tasks:
-    - name: Corosync Token is set to 30000
+    - name: Corosync Token is set to 5000
       lineinfile:
         path: /etc/corosync/corosync.conf
         regexp: 'token:\s*5000'
@@ -33,6 +33,13 @@
       failed_when: not out.found
       tags:
         - "check:1.1.2:Check corosync consensus is 6000"
+        - |
+          description
+          ## Remediation
+          Adjust the Corosync `consensus` timeout as recommended on the Azure best practices.
+
+          ## References
+          - https://docs.microsoft.com/en-us/azure/virtual-machines/workloads/sap/high-availability-guide-suse-pacemaker
 
     - name: Check corosync max_messages is 20
       lineinfile:
@@ -45,3 +52,36 @@
       tags:
         - "check:1.1.3:Check corosync max_messages is 20"
         - "on_failed:warning"
+
+    - name: Store corosync-cmapctl output
+      shell:
+        cmd: corosync-cmapctl
+      register: corosync_cmapctl_output
+
+    - name: Corosync Token is set to 5000 (runtime)
+      assert:
+        that:
+          - item != ""
+        success_msg: "Corosync token value is correct: {{ item }}"
+      with_items:
+        - "{{ corosync_cmapctl_output.stdout | regex_search('runtime\\.config\\.totem\\.token \\(u32\\) = 5000') }}"
+      tags:
+        - "check:1.1.4:Corosync Tokes is set to 5000 (runtime)"
+
+    - name: Corosync Consensus is set to 6000 (runtime)
+      assert:
+        that:
+          - item != ""
+      with_items:
+        - "{{ corosync_cmapctl_output.stdout | regex_search('runtime\\.config\\.totem\\.consensus \\(u32\\) = 6000') }}"
+      tags:
+        - "check:1.1.5:Corosync Consensus is set to 6000 (runtime)"
+
+    - name: Corosync Max messages is set to 20 (runtime)
+      assert:
+        that:
+          - item != ""
+      with_items:
+        - "{{ corosync_cmapctl_output.stdout | regex_search('runtime\\.config\\.totem\\.max_messages \\(u32\\) = 20') }}"
+      tags:
+        - "check:1.1.6:Corosync Max messages is set to 20 (runtime)"

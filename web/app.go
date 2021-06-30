@@ -3,17 +3,17 @@ package web
 import (
 	"embed"
 	"fmt"
+	"io/fs"
+	"log"
 	"net/http"
-	"time"
-	"path"
 	"os"
 	"os/exec"
-	"log"
+	"path"
 	"strings"
-	"io/fs"
+	"time"
 
-	"github.com/pkg/errors"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 
 	"github.com/trento-project/trento/internal/consul"
 
@@ -94,12 +94,14 @@ func (a *App) Start() error {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	runner, err := NewTemplateRunner()
-	if err != nil {
-		return err
-	}
+	/*
+		runner, err := NewTemplateRunner()
+		if err != nil {
+			return err
+		}
 
-	go runner.Start()
+		go runner.Start()
+	*/
 
 	go startAnsibleTicker()
 
@@ -164,9 +166,9 @@ func createTempAnsible() error {
 	}
 
 	err = fs.WalkDir(ansibleFS, "ansible", func(fileName string, dir fs.DirEntry, err error) error {
-    if err != nil {
-        return err
-    }
+		if err != nil {
+			return err
+		}
 		if !dir.IsDir() {
 			content, err := ansibleFS.ReadFile(fileName)
 			if err != nil {
@@ -182,7 +184,7 @@ func createTempAnsible() error {
 		} else {
 			os.Mkdir(path.Join("consul.d", fileName), 0644)
 		}
-	  return nil
+		return nil
 	})
 
 	return nil
@@ -192,21 +194,29 @@ func startAnsibleTicker() {
 	log.Print("Starting the ansible ticker...")
 	createTempAnsible()
 	araCallback := exec.Command("python3", "-m", "ara.setup.callback_plugins")
-	araPath, err := araCallback.Output()
+	araCallbackPath, err := araCallback.Output()
 	if err != nil {
-		log.Println("An error occurred while getting ARA plugin path:", err)
+		log.Println("An error occurred while getting ARA callback plugin path:", err)
 	}
-	araPathStr := strings.TrimSpace(string(araPath))
+	araCallbackPathStr := strings.TrimSpace(string(araCallbackPath))
+
+	araAction := exec.Command("python3", "-m", "ara.setup.action_plugins")
+	araActionPath, err := araAction.Output()
+	if err != nil {
+		log.Println("An error occurred while getting ARA actions plugin path:", err)
+	}
+	araActionPathStr := strings.TrimSpace(string(araActionPath))
 
 	tick := func() {
 		log.Print("Running ansible execution...")
 		cmd := exec.Command("ansible-playbook", "consul.d/ansible/main.yaml", "--inventory=consul.d/ansible_hosts")
-    cmd.Env = append(os.Environ(), fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s", araPathStr))
-		result, err := cmd.CombinedOutput()
+		cmd.Env = append(os.Environ(), fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s", araCallbackPathStr))
+		cmd.Env = append(os.Environ(), fmt.Sprintf("ANSIBLE_ACTION_PLUGINS=%s", araActionPathStr))
+		_, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Println("An error occurred while running ansible:", err)
 		}
-		log.Print(string(result))
+		//log.Print(string(result))
 	}
 
 	interval := 1 * time.Minute

@@ -37,7 +37,7 @@ func NewAgentCmd() *cobra.Command {
 		Run:   start,
 		Args:  startArgsValidator,
 	}
-	startCmd.Flags().DurationVar(&TTL, "ttl", 2 * time.Minute, "Duration of Consul TTL checks")
+	startCmd.Flags().DurationVar(&TTL, "ttl", 2*time.Minute, "Duration of Consul TTL checks")
 	startCmd.Flags().IntVarP(&port, "port", "p", 8700, "The TCP port to use for the web service")
 	startCmd.Flags().StringVarP(&consulConfigDir, "consul-config-dir", "", "consul.d", "Consul configuration directory used to store node meta-data")
 

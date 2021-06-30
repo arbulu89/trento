@@ -1,9 +1,10 @@
 package web
 
 import (
+	"log"
 	"net/http"
 	"sort"
-	"log"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	consulApi "github.com/hashicorp/consul/api"
@@ -123,8 +124,17 @@ func NewHAChecksHandler(client consul.Client) gin.HandlerFunc {
 		}
 
 		r := lastResult.GetResults()
-		for _, rItem := range r.Groups {
-			log.Print(rItem)
+
+		hostRecords := []*Record{}
+		records := NewAraRecords(lastResult.Playbook)
+		log.Print(records)
+		for _, recordItem := range records.RecordResults {
+			log.Print(recordItem.Id)
+			record := NewAraRecord(recordItem.Id)
+			log.Print(record)
+			if strings.Split(record.Key, ":")[1] == name {
+				hostRecords = append(hostRecords, record)
+			}
 		}
 
 		catalogNode, _, err := client.Catalog().Node(name, nil)
@@ -144,6 +154,7 @@ func NewHAChecksHandler(client consul.Client) gin.HandlerFunc {
 			"Hostname": host.Name(),
 			//"HAChecks": host.HAChecks(),
 			"HAChecks": r,
+			"Records":  hostRecords,
 		})
 	}
 }

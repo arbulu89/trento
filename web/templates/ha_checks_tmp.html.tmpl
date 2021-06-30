@@ -45,5 +45,40 @@
         </table>
     </div>
     {{- end }}
+    <hr/>
+    <p class='clearfix'/>
+    <h2>Records</h4>
+    <div class="table-responsive">
+        <table class="table eos-table">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 99%">Record name</th>
+                    <th scope="col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{- range .Records }}
+                <tr>
+                    <td class="align-top">
+                      {{ .Key }}
+                      <div class="ha-check-remediation collapse" id="info-{{ .Id }}">
+                        <pre>{{ .Value }}</pre>
+                      </div>
+                    </td>
+                    <td class="align-top text-center">
+                        <a class="link-dark" type="button"
+                                data-toggle="collapse"
+                                href="#info-{{ .Id }}"
+                                aria-expanded="false"
+                                aria-controls="info-{{ .Id }}"
+                                title="Details">
+                            <i class='eos-icons eos-18'>info</i>
+                        </a>
+                    </td>
+                </tr>
+                {{- end }}
+            </tbody>
+        </table>
+    </div>
 </div>
 {{ end }}

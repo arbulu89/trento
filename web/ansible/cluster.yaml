@@ -38,3 +38,25 @@
           description:
           ## Remediation
           Use the same /etc/corosync/corosync.conf configuration file in all cluster nodes
+
+    - name: Store crm_mon output
+      shell:
+        cmd: crm_mon -1
+      register: crm_mon_output
+
+    - name: Record crm_mon
+      ara_record:
+        key: "crm_mon:{{ ansible_hostname }}"
+        value: "{{ crm_mon_output.stdout }}"
+
+    - name: Store HDB info output
+      shell:
+        cmd: /usr/sap/PRD/HDB00/HDB info
+      become: true
+      become_user: prdadm
+      register: hdb_info_output
+
+    - name: Record HDB info
+      ara_record:
+        key: "hdb_info:{{ ansible_hostname }}"
+        value: "{{ hdb_info_output.stdout }}"

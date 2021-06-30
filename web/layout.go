@@ -104,7 +104,7 @@ func (r *LayoutRender) addFileFromFS(templatesFS fs.FS, file string) {
 		},
 		"markdown": markdownToHTML,
 		"normalizeId": func(id string) string {
-		  return strings.Replace(id, ".", "", -1)
+			return strings.Replace(id, ".", "", -1)
 		},
 	})
 	patterns := append([]string{r.root, file}, r.blocks...)

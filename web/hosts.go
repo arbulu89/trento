@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"sort"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	consulApi "github.com/hashicorp/consul/api"
@@ -21,7 +22,13 @@ func NewHostListHandler(client consul.Client) gin.HandlerFunc {
 		query_filter := hosts.CreateFilterMetaQuery(query)
 		health_filter := query["health"]
 
-		hosts, err := hosts.Load(client, query_filter, health_filter)
+		waitIndex := c.GetHeader("waitIndex")
+		if waitIndex == "" {
+			waitIndex = "1"
+		}
+		//waitIndex := c.DefaultQuery("waitIndex", "1")
+		n, _ := strconv.ParseUint(waitIndex, 10, 64)
+		hosts, lastIndex, err := hosts.Load(client, query_filter, health_filter, n)
 		if err != nil {
 			_ = c.Error(err)
 			return
@@ -33,11 +40,16 @@ func NewHostListHandler(client consul.Client) gin.HandlerFunc {
 			return
 		}
 
+		//hosts = append(hosts, hosts...)
+		//hosts = append(hosts, hosts...)
+		//hosts = append(hosts, hosts...)
+
 		page := c.DefaultQuery("page", "1")
 		perPage := c.DefaultQuery("per_page", "10")
 		pagination := NewPaginationWithStrings(len(hosts), page, perPage)
 		firstElem, lastElem := pagination.GetSliceNumbers()
 
+		c.Header("lastIndex", strconv.FormatUint(lastIndex, 10))
 		c.HTML(http.StatusOK, "hosts.html.tmpl", gin.H{
 			"Hosts":          hosts[firstElem:lastElem],
 			"Filters":        filters,

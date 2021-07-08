@@ -42,7 +42,7 @@ func NewClusterHandler(client consul.Client) gin.HandlerFunc {
 		}
 
 		filter_query := fmt.Sprintf("Meta[\"trento-ha-cluster-id\"] == \"%s\"", clusterId)
-		hosts, err := hosts.Load(client, filter_query, nil)
+		hosts, _, err := hosts.Load(client, filter_query, nil, 1)
 		if err != nil {
 			_ = c.Error(err)
 			return

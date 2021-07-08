@@ -55,7 +55,7 @@ func loadHosts(client consul.Client, env *Environment) error {
 				"trento-sap-landscape":   []string{landKey},
 				"trento-sap-system":      []string{sysKey},
 			})
-			h, err := hosts.Load(client, query, []string{})
+			h, _, err := hosts.Load(client, query, []string{}, 1)
 			if err != nil {
 				return err
 			}

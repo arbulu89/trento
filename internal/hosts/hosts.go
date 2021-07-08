@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aquasecurity/bench-common/check"
 	consulApi "github.com/hashicorp/consul/api"
@@ -110,13 +111,13 @@ func CreateFilterMetaQuery(query map[string][]string) string {
 	return strings.Join(filters, " and ")
 }
 
-func Load(client consul.Client, query_filter string, health_filter []string) (HostList, error) {
+func Load(client consul.Client, query_filter string, health_filter []string, waitIndex uint64) (HostList, uint64, error) {
 	var hosts = HostList{}
 
-	query := &consulApi.QueryOptions{Filter: query_filter}
-	consul_nodes, _, err := client.Catalog().Nodes(query)
+	query := &consulApi.QueryOptions{Filter: query_filter, WaitIndex: waitIndex, WaitTime: 45 * time.Second}
+	consul_nodes, meta, err := client.Catalog().Nodes(query)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not query Consul for nodes")
+		return nil, 1, errors.Wrap(err, "could not query Consul for nodes")
 	}
 	for _, node := range consul_nodes {
 		populated_host := &Host{*node, client}
@@ -126,7 +127,7 @@ func Load(client consul.Client, query_filter string, health_filter []string) (Ho
 		}
 	}
 
-	return hosts, nil
+	return hosts, meta.LastIndex, nil
 }
 
 func sortKeys(m map[string][]string) []string {

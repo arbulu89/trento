@@ -76,8 +76,8 @@ func (a *App) Start() error {
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", a.host, a.port),
 		Handler:        a,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		ReadTimeout:    120 * time.Second,
+		WriteTimeout:   120 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 

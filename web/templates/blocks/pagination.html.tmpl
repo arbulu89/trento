@@ -5,12 +5,13 @@
       Total <strong>{{ .ItemCount }} items</strong>
     </div>
     <ul class='pagination-count pagination'>
-      <li value='1' class='page-item'><a class='page-link' href='#'>First</a></li>
+      <li value='1' class='page-item'><a class='page-link' href='{{ .Href 1 0 }}'>First</a></li>
+      {{ $Pagination := . }}
       {{ $Pages := .GetCurrentPages }}
       {{- range $Page := $Pages }}
-      <li value='{{ $Page.Index }}' class='page-item {{ if $Page.Active }}active{{ end }}'><a class='page-link' href='#'>{{ $Page.Index }}</a></li>
+      <li value='{{ $Page.Index }}' class='page-item {{ if $Page.Active }}active{{ end }}'><a class='page-link' href='{{ $Pagination.Href $Page.Index 0 }}'>{{ $Page.Index }}</a></li>
       {{- end }}
-      <li value='{{ .PageCount }}'class='page-item'><a class='page-link' href='#'>Last ({{ .PageCount }})</a></li>
+      <li value='{{ .PageCount }}'class='page-item'><a class='page-link' href='{{ .Href .PageCount 0 }}'>Last ({{ .PageCount }})</a></li>
     </ul>
     <div class='pagination-actions margin-right-m'>
       <!--
@@ -29,7 +30,7 @@
         </button>
         <div class='dropdown-menu' aria-labelledby='dropdownMenuButton'>
           {{- range $i := .GetPerPages }}
-          <a class='dropdown-item' href='#'>{{ $i }}</a>
+          <a class='dropdown-item' href='{{ $Pagination.Href 0 $i }}'>{{ $i }}</a>
           {{- end }}
         </div>
       </div>

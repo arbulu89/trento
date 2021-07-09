@@ -33,9 +33,13 @@ func NewHostListHandler(client consul.Client) gin.HandlerFunc {
 			return
 		}
 
+		hosts = append(hosts, hosts...)
+		hosts = append(hosts, hosts...)
+		hosts = append(hosts, hosts...)
+
 		page := c.DefaultQuery("page", "1")
 		perPage := c.DefaultQuery("per_page", "10")
-		pagination := NewPaginationWithStrings(len(hosts), page, perPage)
+		pagination := NewPaginationWithStrings("/hosts", len(hosts), page, perPage)
 		firstElem, lastElem := pagination.GetSliceNumbers()
 
 		c.HTML(http.StatusOK, "hosts.html.tmpl", gin.H{

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 )
@@ -11,6 +12,7 @@ const (
 )
 
 type Pagination struct {
+	Url       string
 	ItemCount int
 	PageIndex int
 	PerPage   int
@@ -26,7 +28,7 @@ func getPageCount(items, perPage int) int {
 	return int((float64(items) + float64(perPage) - 1) / float64(perPage))
 }
 
-func NewPaginationWithStrings(items int, page, perPage string) *Pagination {
+func NewPaginationWithStrings(url string, items int, page, perPage string) *Pagination {
 	pageInt, err := strconv.Atoi(page)
 	if err != nil {
 		pageInt = defaultPageIndex
@@ -37,10 +39,10 @@ func NewPaginationWithStrings(items int, page, perPage string) *Pagination {
 		perPageInt = defaultPerPage
 	}
 
-	return NewPagination(items, pageInt, perPageInt)
+	return NewPagination(url, items, pageInt, perPageInt)
 }
 
-func NewPagination(items, page, perPage int) *Pagination {
+func NewPagination(url string, items, page, perPage int) *Pagination {
 	pCount := getPageCount(items, perPage)
 
 	if page < 1 || items == 0 {
@@ -50,6 +52,7 @@ func NewPagination(items, page, perPage int) *Pagination {
 	}
 
 	return &Pagination{
+		Url:       url,
 		ItemCount: items,
 		PageIndex: page,
 		PerPage:   perPage,
@@ -80,4 +83,14 @@ func (p *Pagination) GetSliceNumbers() (int, int) {
 
 func (p *Pagination) GetPerPages() []int {
 	return []int{10, 25, 50, 100}
+}
+
+func (p *Pagination) Href(pageIndex, perPage int) string {
+	if pageIndex == 0 {
+		pageIndex = p.PageIndex
+	}
+	if perPage == 0 {
+		perPage = p.PerPage
+	}
+	return fmt.Sprintf("%s?page=%d&per_page=%d", p.Url, pageIndex, perPage)
 }

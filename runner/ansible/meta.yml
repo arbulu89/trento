@@ -1,0 +1,22 @@
+- hosts: localhost
+  gather_facts: False
+
+  vars:
+    ara_playbook_labels:
+      - meta
+
+  tasks:
+    - name: include 1.1.1 meta
+      include_role:
+        name: '1.1.1'
+        tasks_from: meta
+
+    - name: include 1.1.2 meta
+      include_role:
+        name: '1.1.2'
+        tasks_from: meta
+
+    - name: Post metadata
+      include_role:
+        name: post-metadata
+        tasks_from: post

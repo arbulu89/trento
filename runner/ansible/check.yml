@@ -1,0 +1,25 @@
+- hosts: all
+  vars:
+    ara_playbook_labels:
+      - test
+
+  tasks:
+    - name: include 1.1.1 checks
+      include_role:
+        name: '1.1.1'
+        tasks_from: check
+      when: "'1.1.1' in tags"
+
+    - name: include 1.1.2 checks
+      include_role:
+        name: '1.1.2'
+        tasks_from: check
+      when: "'1.1.2' in tags"
+
+- hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Post result
+      include_role:
+        name: post-result
+        tasks_from: post

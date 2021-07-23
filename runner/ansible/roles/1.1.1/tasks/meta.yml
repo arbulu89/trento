@@ -1,0 +1,17 @@
+- block:
+    - import_role:
+        name: post-metadata
+        tasks_from: store
+  vars:
+    id: 1.1.1
+    name: Corosync Token is set to 30000
+    labels: generic
+    description: |
+      Test if the configured corosync Token has the correct value: 30000
+    remediation: |
+      ## Remediation
+      Adjust the Corosync `token` timeout as recommended on the Azure best practices.
+
+      ## References
+      - https://docs.microsoft.com/en-us/azure/virtual-machines/workloads/sap/high-availability-guide-suse-pacemaker
+    implementation: "{{ lookup('file', 'roles/1.1.1/tasks/check.yml') }}"

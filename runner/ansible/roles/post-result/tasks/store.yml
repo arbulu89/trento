@@ -1,0 +1,3 @@
+- name: Set result {{ id }}
+  set_fact:
+    checks_result: "{{ (checks_result | default({})) | combine({inventory_hostname:{id: status}}, recursive=True) }}"

@@ -1,0 +1,14 @@
+- name: Delegate result facts
+  set_fact:
+    checks_result: "{{ (checks_result | default({})) | combine(item.value.checks_result) }}"
+  loop: "{{ hostvars | dict2items }}"
+
+- name: Post result
+  ara_record:
+    key: trento-result
+    value: '{{ checks_result }}'
+  register: record
+
+- name: Print result
+  debug:
+    msg: '{{ record.value }}'
